@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Addition Game</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-image: url('background.png');
+            background-size: cover;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+        #game-container {
+            background-color: rgba(255, 255, 255, 0.9);
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+            max-width: 800px;
+            width: 90%;
+        }
+        .balloon {
+            display: inline-block;
+            width: 80px;
+            height: 100px;
+            margin: 10px;
+            border-radius: 50% 50% 50% 50% / 40% 40% 60% 60%;
+            cursor: pointer;
+            transition: transform 0.3s;
+            position: relative;
+            vertical-align: top;
+        }
+        .balloon:hover {
+            transform: scale(1.1);
+        }
+        .balloon::after {
+            content: '';
+            display: block;
+            height: 70px;
+            width: 1px;
+            background: #000;
+            margin: 0 auto;
+            position: absolute;
+            bottom: -70px;
+            left: 50%;
+        }
+        .balloon span {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            width: 100%;
+            height: 100%;
+            font-size: 24px;
+            font-weight: bold;
+            color: #000;
+        }
+        #timer, #score {
+            font-size: 18px;
+            margin: 10px 0;
+        }
+        #victory {
+            display: none;
+        }
+        #victory img {
+            width: 200px;
+        }
+        button {
+            background-color: #4CAF50;
+            border: none;
+            color: white;
+            padding: 15px 32px;
+            text-align: center;
+            text-decoration: none;
+            display: inline-block;
+            font-size: 16px;
+            margin: 4px 2px;
+            cursor: pointer;
+            border-radius: 5px;
+        }
+        input[type="text"] {
+            padding: 10px;
+            font-size: 16px;
+            border-radius: 5px;
+            border: 1px solid #ddd;
+            width: 200px;
+        }
+    </style>
+</head>
+<body>
+    <div id="game-container">
+        <h1>Addition Game</h1>
+        <div id="name-input">
+            <input type="text" id="player-name" placeholder="Enter your name">
+            <button onclick="startGame()">Start Game</button>
+        </div>
+        <div id="game-area" style="display: none;">
+            <p id="instructions"></p>
+            <div id="timer">Time: 0s</div>
+            <div id="score">Score: 0</div>
+            <div id="balloons"></div>
+            <button id="next-stage" style="display: none;" onclick="nextStage()">Go to next stage</button>
+        </div>
+        <div id="victory" style="display: none;">
+            <img src="victory.png" alt="Trophy">
+            <p>Well done, <span id="player-name-display"></span>!</p>
+            <p>Your score: <span id="final-score"></span></p>
+            <p>Total time: <span id="total-time"></span></p>
+        </div>
+    </div>
+    <audio id="sound" src="sound.mp3"></audio>
+    <script>
+        let playerName, currentStage, score, startTime, timerInterval;
+        let selectedBalloons = [];
+        const stages = [
+            { target: 10, balloons: 6 },
+            { target: 30, balloons: 10 },
+            { target: 100, balloons: 12 }
+        ];
+
+        function startGame() {
+            playerName = document.getElementById('player-name').value;
+            if (!playerName) {
+                alert('Please enter your name');
+                return;
+            }
+            document.getElementById('name-input').style.display = 'none';
+            document.getElementById('game-area').style.display = 'block';
+            currentStage = 0;
+            score = 0;
+            startTime = Date.now();
+            timerInterval = setInterval(updateTimer, 1000);
+            setupStage();
+        }
+
+        function setupStage() {
+            const stage = stages[currentStage];
+            document.getElementById('instructions').textContent = `Find the pairs of balloons whose sum is ${stage.target}`;
+            createBalloons(stage.balloons, stage.target);
+            document.getElementById('next-stage').style.display = 'none';
+            selectedBalloons = [];
+        }
+
+        function createBalloons(count, target) {
+            const balloonContainer = document.getElementById('balloons');
+            balloonContainer.innerHTML = '';
+            const numbers = generateNumbers(count, target);
+            numbers.forEach(num => {
+                const balloon = document.createElement('div');
+                balloon.className = 'balloon';
+                balloon.innerHTML = `<span>${num}</span>`;
+                balloon.style.backgroundColor = getRandomColor();
+                balloon.onclick = () => selectBalloon(balloon);
+                balloonContainer.appendChild(balloon);
+            });
+        }
+
+        function generateNumbers(count, target) {
+            let numbers = [];
+            for (let i = 0; i < count / 2; i++) {
+                let num1 = Math.floor(Math.random() * (target - 1)) + 1;
+                let num2 = target - num1;
+                numbers.push(num1, num2);
+            }
+            return shuffleArray(numbers);
+        }
+
+        function shuffleArray(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+            return array;
+        }
+
+        function getRandomColor() {
+            const colors = ['#FFD700', '#00CED1', '#FF69B4', '#32CD32', '#FF1493'];
+            return colors[Math.floor(Math.random() * colors.length)];
+        }
+
+        function selectBalloon(balloon) {
+            if (selectedBalloons.length < 2 && !selectedBalloons.includes(balloon)) {
+                selectedBalloons.push(balloon);
+                balloon.style.transform = 'scale(1.1)';
+                
+                if (selectedBalloons.length === 2) {
+                    setTimeout(checkPair, 500);
+                }
+            }
+        }
+
+        function checkPair() {
+            const [balloon1, balloon2] = selectedBalloons;
+            const sum = parseInt(balloon1.textContent) + parseInt(balloon2.textContent);
+            const target = stages[currentStage].target;
+
+            if (sum === target) {
+                score++;
+                document.getElementById('score').textContent = `Score: ${score}`;
+                balloon1.style.visibility = 'hidden';
+                balloon2.style.visibility = 'hidden';
+            } else {
+                balloon1.style.transform = 'scale(1)';
+                balloon2.style.transform = 'scale(1)';
+            }
+
+            selectedBalloons = [];
+
+            if (document.querySelectorAll('.balloon[style*="visibility: visible"]').length === 0) {
+                document.getElementById('next-stage').style.display = 'block';
+            }
+        }
+
+        function updateTimer() {
+            const elapsedTime = Math.floor((Date.now() - startTime) / 1000);
+            document.getElementById('timer').textContent = `Time: ${elapsedTime}s`;
+        }
+
+        function nextStage() {
+            currentStage++;
+            if (currentStage < stages.length) {
+                setupStage();
+            } else {
+                endGame();
+            }
+        }
+
+        function endGame() {
+            clearInterval(timerInterval);
+            const totalTime = Math.floor((Date.now() - startTime) / 1000);
+            document.getElementById('game-area').style.display = 'none';
+            document.getElementById('victory').style.display = 'block';
+            document.getElementById('player-name-display').textContent = playerName;
+            document.getElementById('final-score').textContent = score;
+            document.getElementById('total-time').textContent = `${totalTime} seconds`;
+            document.getElementById('sound').play();
+        }
+    </script>
+</body>
+</html>
